@@ -4,5 +4,6 @@
 /*.iml
 /.env
 /.mvn/
+/.m2repo/
 mvnw
 mvnw.cmd
