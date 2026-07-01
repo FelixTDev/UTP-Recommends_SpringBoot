@@ -32,6 +32,11 @@ Proyecto monolítico modular bajo `com.utp.recommends` con separación por `auth
 - `SPRING_DATASOURCE_PASSWORD`
 - `APP_SECURITY_JWT_SECRET`
 - `APP_SECURITY_JWT_EXPIRATION_MINUTES`
+- `APP_BOOTSTRAP_ADMIN_ENABLED`
+- `APP_BOOTSTRAP_ADMIN_EMAIL`
+- `APP_BOOTSTRAP_ADMIN_PASSWORD`
+- `APP_BOOTSTRAP_ADMIN_NOMBRES`
+- `APP_BOOTSTRAP_ADMIN_APELLIDOS`
 
 ### PowerShell Windows
 
@@ -41,7 +46,32 @@ $env:SPRING_DATASOURCE_USERNAME="root"
 $env:SPRING_DATASOURCE_PASSWORD=""
 $env:APP_SECURITY_JWT_SECRET="clave_larga_segura_de_minimo_32_caracteres"
 $env:APP_SECURITY_JWT_EXPIRATION_MINUTES="30"
+$env:APP_BOOTSTRAP_ADMIN_ENABLED="true"
+$env:APP_BOOTSTRAP_ADMIN_EMAIL="admin@utp.edu.pe"
+$env:APP_BOOTSTRAP_ADMIN_PASSWORD="Admin123!"
+$env:APP_BOOTSTRAP_ADMIN_NOMBRES="Administrador"
+$env:APP_BOOTSTRAP_ADMIN_APELLIDOS="Sistema"
 ```
+
+## Bootstrap admin local seguro
+
+El backend ya no depende de un `password_hash` placeholder para pruebas locales. Si necesitas un admin usable, habilita el bootstrap por variables de entorno y arranca la aplicación:
+
+```powershell
+$env:APP_BOOTSTRAP_ADMIN_ENABLED="true"
+$env:APP_BOOTSTRAP_ADMIN_EMAIL="admin@utp.edu.pe"
+$env:APP_BOOTSTRAP_ADMIN_PASSWORD="Admin123!"
+$env:APP_BOOTSTRAP_ADMIN_NOMBRES="Administrador"
+$env:APP_BOOTSTRAP_ADMIN_APELLIDOS="Sistema"
+mvn "-Dmaven.repo.local=C:\WebProyecto\.m2repo" spring-boot:run
+```
+
+Notas:
+
+- El bootstrap está desactivado por defecto.
+- Cuando está activado, crea o actualiza el usuario admin configurado con BCrypt.
+- `APP_BOOTSTRAP_ADMIN_PASSWORD` debe cumplir la política de contraseña del sistema.
+- `BD_UTPRECOMMENDS.sql` puede seguir usándose como base del esquema, pero el admin operativo debe generarse con este mecanismo o con un hash BCrypt válido equivalente.
 
 ## Configuración de BD
 
@@ -86,6 +116,7 @@ Si después de corregir variables el error de dialect desaparece pero el arranqu
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/auth/me`
+- `PUT /api/auth/change-password`
 - `GET /api/admin/usuarios`
 - `GET /api/admin/carreras`
 - `GET /api/admin/docentes`
@@ -93,9 +124,14 @@ Si después de corregir variables el error de dialect desaparece pero el arranqu
 - `GET /api/admin/curso-docente`
 - `GET /api/admin/criterios`
 - `POST /api/estudiante/resenas`
+- `GET /api/estudiante/curso-docente/activos`
+- `GET /api/estudiante/perfil`
+- `PUT /api/estudiante/perfil`
+- `GET /api/estudiante/dashboard`
 - `GET /api/estudiante/resenas/mis-resenas`
 - `POST /api/estudiante/solicitudes`
 - `GET /api/estudiante/solicitudes/mis-solicitudes`
+- `GET /api/admin/dashboard`
 - `GET /api/admin/moderacion/resenas`
 - `GET /api/admin/moderacion/solicitudes`
 - `GET /api/public/resenas`

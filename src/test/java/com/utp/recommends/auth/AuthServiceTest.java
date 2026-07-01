@@ -3,8 +3,10 @@ package com.utp.recommends.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.utp.recommends.auth.dto.request.ChangePasswordRequest;
 import com.utp.recommends.auth.dto.request.LoginRequest;
 import com.utp.recommends.auth.dto.request.RegisterRequest;
 import com.utp.recommends.auth.service.AuthServiceImpl;
@@ -113,5 +115,29 @@ class AuthServiceTest {
 
         assertThat(response.token()).isEqualTo("jwt");
         assertThat(response.userId()).isEqualTo(11L);
+    }
+
+    @Test
+    void changePasswordRejectsSamePassword() {
+        Usuario usuario = new Usuario();
+        usuario.setPasswordHash(new BCryptPasswordEncoder().encode("Password1!"));
+        when(authenticatedUserService.getCurrentUsuario()).thenReturn(usuario);
+
+        assertThatThrownBy(() -> authService.changePassword(new ChangePasswordRequest("Password1!", "Password1!")))
+            .isInstanceOf(BusinessException.class)
+            .hasMessage("La nueva contraseña no puede ser igual a la actual");
+    }
+
+    @Test
+    void changePasswordUpdatesHash() {
+        Usuario usuario = new Usuario();
+        usuario.setPasswordHash(new BCryptPasswordEncoder().encode("Password1!"));
+        when(authenticatedUserService.getCurrentUsuario()).thenReturn(usuario);
+        when(usuarioRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        authService.changePassword(new ChangePasswordRequest("Password1!", "NewPassword1!"));
+
+        verify(usuarioRepository).save(usuario);
+        assertThat(new BCryptPasswordEncoder().matches("NewPassword1!", usuario.getPasswordHash())).isTrue();
     }
 }

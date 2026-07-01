@@ -2,6 +2,7 @@ package com.utp.recommends.auth.controller;
 
 import com.utp.recommends.auth.dto.request.LoginRequest;
 import com.utp.recommends.auth.dto.request.RegisterRequest;
+import com.utp.recommends.auth.dto.request.ChangePasswordRequest;
 import com.utp.recommends.auth.dto.response.AuthResponse;
 import com.utp.recommends.auth.dto.response.CurrentUserResponse;
 import com.utp.recommends.auth.service.AuthService;
@@ -9,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -38,5 +40,11 @@ public class AuthController {
     @GetMapping("/me")
     public CurrentUserResponse me() {
         return authService.me();
+    }
+
+    @PutMapping("/change-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
     }
 }

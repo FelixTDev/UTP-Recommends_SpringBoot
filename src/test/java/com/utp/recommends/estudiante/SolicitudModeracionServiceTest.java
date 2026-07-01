@@ -8,8 +8,10 @@ import static org.mockito.Mockito.when;
 import com.utp.recommends.admin.moderacion_solicitud.dto.request.AprobarSolicitudRequest;
 import com.utp.recommends.admin.moderacion_solicitud.service.SolicitudModeracionServiceImpl;
 import com.utp.recommends.common.exception.BusinessException;
+import com.utp.recommends.domain.entity.Carrera;
 import com.utp.recommends.domain.entity.Curso;
 import com.utp.recommends.domain.entity.Docente;
+import com.utp.recommends.domain.entity.Estudiante;
 import com.utp.recommends.domain.entity.Resena;
 import com.utp.recommends.domain.entity.CriterioCalificacion;
 import com.utp.recommends.domain.entity.Solicitud;
@@ -64,7 +66,7 @@ class SolicitudModeracionServiceTest {
         criterio.setEstado(EstadoSimple.ACTIVO);
         when(criterioRepository.findByEstado(EstadoSimple.ACTIVO)).thenReturn(List.of(criterio, new CriterioCalificacion()));
 
-        assertThatThrownBy(() -> service.aprobar(1L, new AprobarSolicitudRequest(null, null, List.of(new CriterioPuntajeRequest(1L, 5)))))
+        assertThatThrownBy(() -> service.aprobar(1L, new AprobarSolicitudRequest(null, null, null, null, List.of(new CriterioPuntajeRequest(1L, 5)))))
             .isInstanceOf(BusinessException.class);
     }
 
@@ -77,6 +79,7 @@ class SolicitudModeracionServiceTest {
         solicitud.setNombreCursoSugerido("POO");
         solicitud.setNombreDocenteSugerido("Luis");
         solicitud.setComentario("Comentario valido");
+        solicitud.setEstudiante(estudiante());
 
         CriterioCalificacion criterio = new CriterioCalificacion();
         criterio.setId(1L);
@@ -111,10 +114,50 @@ class SolicitudModeracionServiceTest {
         when(resenaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(solicitudRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        service.aprobar(1L, new AprobarSolicitudRequest(null, null, List.of(new CriterioPuntajeRequest(1L, 5))));
+        service.aprobar(1L, new AprobarSolicitudRequest(null, null, null, null, List.of(new CriterioPuntajeRequest(1L, 5))));
 
         org.mockito.Mockito.verify(resenaRepository).save(captor.capture());
         assertThat(captor.getValue().getCalificaciones()).hasSize(1);
         assertThat(captor.getValue().getCalificaciones().getFirst().getPuntaje()).isEqualTo(Byte.valueOf((byte) 5));
+    }
+
+    @Test
+    void cursoNuevoRequiresExistingTeacherId() {
+        Solicitud solicitud = new Solicitud();
+        solicitud.setId(2L);
+        solicitud.setEstado(EstadoSolicitud.PENDIENTE);
+        solicitud.setTipo(TipoSolicitud.CURSO_NUEVO);
+        solicitud.setNombreCursoSugerido("Base de Datos");
+        solicitud.setComentario("Comentario valido");
+
+        CriterioCalificacion criterio = new CriterioCalificacion();
+        criterio.setId(1L);
+        criterio.setEstado(EstadoSimple.ACTIVO);
+
+        when(solicitudRepository.findById(2L)).thenReturn(Optional.of(solicitud));
+        when(criterioRepository.findByEstado(EstadoSimple.ACTIVO)).thenReturn(List.of(criterio));
+
+        assertThatThrownBy(() -> service.aprobar(2L, new AprobarSolicitudRequest(null, null, null, null, List.of(new CriterioPuntajeRequest(1L, 5)))))
+            .isInstanceOf(BusinessException.class)
+            .hasMessageContaining("docente activo");
+    }
+
+    private Estudiante estudiante() {
+        Usuario usuario = new Usuario();
+        usuario.setId(10L);
+        usuario.setEmail("U12345678@utp.edu.pe");
+        usuario.setNombres("Juan");
+        usuario.setApellidos("Perez");
+
+        Carrera carrera = new Carrera();
+        carrera.setId(1L);
+        carrera.setNombre("Ingeniería de Sistemas");
+
+        Estudiante estudiante = new Estudiante();
+        estudiante.setId(1L);
+        estudiante.setUsuario(usuario);
+        estudiante.setCarrera(carrera);
+        estudiante.setCodigoEstudiante("U12345678");
+        return estudiante;
     }
 }

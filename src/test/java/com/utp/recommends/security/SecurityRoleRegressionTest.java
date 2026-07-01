@@ -47,4 +47,10 @@ class SecurityRoleRegressionTest {
         mockMvc.perform(get("/api/estudiante/resenas/mis-resenas").with(user("admin").roles("ADMIN")))
             .andExpect(status().isForbidden());
     }
+
+    @Test
+    void authMeRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+            .andExpect(status().isUnauthorized());
+    }
 }

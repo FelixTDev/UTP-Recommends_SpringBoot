@@ -67,6 +67,7 @@ public class SolicitudModeracionServiceImpl implements SolicitudModeracionServic
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ModeracionSolicitudResponse> pendientes() {
         return solicitudRepository.findByEstadoOrderByFechaCreacionAsc(EstadoSolicitud.PENDIENTE).stream().map(this::toResponse).toList();
     }
@@ -81,8 +82,9 @@ public class SolicitudModeracionServiceImpl implements SolicitudModeracionServic
 
         List<CriterioCalificacion> criteriosActivos = criterioRepository.findByEstado(EstadoSimple.ACTIVO);
         validateScores(request.calificaciones(), criteriosActivos);
+        validateSolicitudComment(solicitud.getComentario());
 
-        Docente docente = resolveDocente(solicitud);
+        Docente docente = resolveDocente(solicitud, request);
         Curso curso = resolveCurso(solicitud, request);
         CursoDocente cursoDocente = cursoDocenteRepository.findByCursoIdAndDocenteId(curso.getId(), docente.getId()).orElseGet(() -> {
             CursoDocente created = new CursoDocente();
@@ -137,23 +139,28 @@ public class SolicitudModeracionServiceImpl implements SolicitudModeracionServic
         return toResponse(solicitudRepository.save(solicitud));
     }
 
-    private Docente resolveDocente(Solicitud solicitud) {
+    private Docente resolveDocente(Solicitud solicitud, AprobarSolicitudRequest request) {
         if (solicitud.getTipo() == TipoSolicitud.CURSO_NUEVO) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "La solicitud requiere docente o ambos para generar reseña");
+            return docenteRepository.findByIdAndEstado(request.docenteExistenteId(), EstadoSimple.ACTIVO)
+                .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "Debe enviar un docente activo para aprobar una solicitud CURSO_NUEVO"));
         }
-        Docente docente = new Docente();
-        docente.setNombres(solicitud.getNombreDocenteSugerido());
-        docente.setApellidos("Sin Apellido");
-        docente.setEstado(EstadoSimple.ACTIVO);
-        return docenteRepository.save(docente);
+        if (solicitud.getTipo() == TipoSolicitud.DOCENTE_NUEVO || solicitud.getTipo() == TipoSolicitud.AMBOS) {
+            Docente docente = new Docente();
+            docente.setNombres(solicitud.getNombreDocenteSugerido().trim());
+            docente.setApellidos("Sin Apellido");
+            docente.setEstado(EstadoSimple.ACTIVO);
+            return docenteRepository.save(docente);
+        }
+        throw new BusinessException(HttpStatus.BAD_REQUEST, "Tipo de solicitud no soportado");
     }
 
     private Curso resolveCurso(Solicitud solicitud, AprobarSolicitudRequest request) {
         if (solicitud.getTipo() == TipoSolicitud.DOCENTE_NUEVO) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "La solicitud requiere curso o ambos para generar reseña");
+            return cursoRepository.findByIdAndEstado(request.cursoExistenteId(), EstadoSimple.ACTIVO)
+                .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "Debe enviar un curso activo para aprobar una solicitud DOCENTE_NUEVO"));
         }
         Curso curso = new Curso();
-        curso.setNombre(solicitud.getNombreCursoSugerido());
+        curso.setNombre(solicitud.getNombreCursoSugerido().trim());
         TipoCurso tipoCurso = request.tipoCurso() == null ? TipoCurso.GENERAL : request.tipoCurso();
         curso.setTipo(tipoCurso);
         curso.setEstado(EstadoSimple.ACTIVO);
@@ -164,6 +171,12 @@ public class SolicitudModeracionServiceImpl implements SolicitudModeracionServic
             curso.setCarrera(carrera);
         }
         return cursoRepository.save(curso);
+    }
+
+    private void validateSolicitudComment(String comentario) {
+        if (comentario == null || comentario.trim().length() < 10) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "La solicitud debe tener un comentario válido para generar una reseña aprobada");
+        }
     }
 
     private void validateScores(List<CriterioPuntajeRequest> scores, List<CriterioCalificacion> activeCriteria) {
@@ -180,7 +193,23 @@ public class SolicitudModeracionServiceImpl implements SolicitudModeracionServic
     private ModeracionSolicitudResponse toResponse(Solicitud solicitud) {
         return new ModeracionSolicitudResponse(
             solicitud.getId(),
+            solicitud.getTipo().name(),
             solicitud.getEstado().name(),
+            solicitud.getFechaCreacion(),
+            solicitud.getComentario(),
+            new ModeracionSolicitudResponse.StudentSummary(
+                solicitud.getEstudiante().getId(),
+                solicitud.getEstudiante().getUsuario().getNombres() + " " + solicitud.getEstudiante().getUsuario().getApellidos(),
+                solicitud.getEstudiante().getUsuario().getEmail(),
+                solicitud.getEstudiante().getCarrera().getId(),
+                solicitud.getEstudiante().getCarrera().getNombre()
+            ),
+            new ModeracionSolicitudResponse.RequestedData(
+                solicitud.getNombreCursoSugerido(),
+                solicitud.getCarreraSugerida() == null ? null : solicitud.getCarreraSugerida().getId(),
+                solicitud.getCarreraSugerida() == null ? null : solicitud.getCarreraSugerida().getNombre(),
+                solicitud.getNombreDocenteSugerido()
+            ),
             solicitud.getResenaGenerada() == null ? null : solicitud.getResenaGenerada().getId(),
             solicitud.getMotivoRechazo()
         );

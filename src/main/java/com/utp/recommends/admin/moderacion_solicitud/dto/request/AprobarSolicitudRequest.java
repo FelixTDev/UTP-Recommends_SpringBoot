@@ -9,6 +9,8 @@ import java.util.List;
 public record AprobarSolicitudRequest(
     TipoCurso tipoCurso,
     Long carreraId,
+    Long cursoExistenteId,
+    Long docenteExistenteId,
     @NotEmpty List<@Valid CriterioPuntajeRequest> calificaciones
 ) {
 }

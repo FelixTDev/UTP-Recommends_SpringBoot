@@ -2,9 +2,11 @@ package com.utp.recommends.auth.service;
 
 import com.utp.recommends.auth.dto.request.LoginRequest;
 import com.utp.recommends.auth.dto.request.RegisterRequest;
+import com.utp.recommends.auth.dto.request.ChangePasswordRequest;
 import com.utp.recommends.auth.dto.response.AuthResponse;
 import com.utp.recommends.auth.dto.response.CurrentUserResponse;
 import com.utp.recommends.common.exception.BusinessException;
+import com.utp.recommends.common.validation.ValidationPatterns;
 import com.utp.recommends.domain.entity.Carrera;
 import com.utp.recommends.domain.entity.Estudiante;
 import com.utp.recommends.domain.entity.Usuario;
@@ -112,6 +114,26 @@ public class AuthServiceImpl implements AuthService {
             usuario.getNombres(),
             usuario.getApellidos()
         );
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+        Usuario usuario = authenticatedUserService.getCurrentUsuario();
+        if (!passwordEncoder.matches(request.currentPassword(), usuario.getPasswordHash())) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "La contraseña actual es incorrecta");
+        }
+        if (!request.newPassword().matches(ValidationPatterns.PASSWORD)) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "La nueva contraseña no cumple la política requerida");
+        }
+        if (request.newPassword().contains(" ")) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "La nueva contraseña no debe contener espacios");
+        }
+        if (passwordEncoder.matches(request.newPassword(), usuario.getPasswordHash())) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "La nueva contraseña no puede ser igual a la actual");
+        }
+        usuario.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        usuarioRepository.save(usuario);
     }
 
     private AuthResponse buildAuthResponse(Usuario usuario) {

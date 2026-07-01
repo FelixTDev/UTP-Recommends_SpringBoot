@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CriterioCalificacionRepository extends JpaRepository<CriterioCalificacion, Long> {
     List<CriterioCalificacion> findByEstado(EstadoSimple estado);
+    long countByEstado(EstadoSimple estado);
 }

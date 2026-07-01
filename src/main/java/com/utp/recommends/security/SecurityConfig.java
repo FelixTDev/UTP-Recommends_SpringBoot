@@ -31,7 +31,8 @@ public class SecurityConfig {
                 .accessDeniedHandler(accessDeniedHandler)
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/public/**").permitAll()
+                .requestMatchers("/api/auth/me", "/api/auth/change-password").authenticated()
+                .requestMatchers("/api/auth/login", "/api/auth/register", "/api/public/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/estudiante/**").hasRole("ESTUDIANTE")
                 .anyRequest().authenticated()

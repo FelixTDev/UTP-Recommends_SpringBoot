@@ -16,6 +16,13 @@ spring:
     default-property-inclusion: non_null
 
 app:
+  bootstrap:
+    admin:
+      enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:false}
+      email: ${APP_BOOTSTRAP_ADMIN_EMAIL:}
+      password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
+      nombres: ${APP_BOOTSTRAP_ADMIN_NOMBRES:Administrador}
+      apellidos: ${APP_BOOTSTRAP_ADMIN_APELLIDOS:Sistema}
   security:
     jwt:
       secret: ${APP_SECURITY_JWT_SECRET:replace_with_a_256_bit_secret_replace_with_a_256_bit_secret}

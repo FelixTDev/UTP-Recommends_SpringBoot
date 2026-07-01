@@ -26,6 +26,10 @@ public interface ResenaRepository extends JpaRepository<Resena, Long> {
 
     List<Resena> findByEstadoOrderByFechaCreacionAsc(EstadoResena estado);
 
+    long countByEstado(EstadoResena estado);
+    long countByEstudianteId(Long estudianteId);
+    long countByEstudianteIdAndEstado(Long estudianteId, EstadoResena estado);
+
     @Query("""
         select r from Resena r
         join r.cursoDocente cd

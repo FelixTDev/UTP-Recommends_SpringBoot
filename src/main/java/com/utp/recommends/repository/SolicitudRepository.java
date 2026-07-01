@@ -10,4 +10,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface SolicitudRepository extends JpaRepository<Solicitud, Long> {
     Page<Solicitud> findByEstudianteId(Long estudianteId, Pageable pageable);
     List<Solicitud> findByEstadoOrderByFechaCreacionAsc(EstadoSolicitud estado);
+    long countByEstudianteId(Long estudianteId);
+    long countByEstado(EstadoSolicitud estado);
 }

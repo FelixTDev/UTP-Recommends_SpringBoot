@@ -10,4 +10,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CursoRepository extends JpaRepository<Curso, Long> {
     List<Curso> findByEstado(EstadoSimple estado);
     Optional<Curso> findByNombreIgnoreCaseAndTipoAndCarreraIsNull(String nombre, TipoCurso tipo);
+    Optional<Curso> findByIdAndEstado(Long id, EstadoSimple estado);
+    long countByEstado(EstadoSimple estado);
 }

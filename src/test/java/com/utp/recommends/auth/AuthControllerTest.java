@@ -3,11 +3,13 @@ package com.utp.recommends.auth;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.utp.recommends.auth.controller.AuthController;
+import com.utp.recommends.auth.dto.request.ChangePasswordRequest;
 import com.utp.recommends.auth.dto.request.LoginRequest;
 import com.utp.recommends.auth.dto.request.RegisterRequest;
 import com.utp.recommends.auth.dto.response.AuthResponse;
@@ -61,5 +63,15 @@ class AuthControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.token").value("jwt"))
             .andExpect(jsonPath("$.tokenType").value("Bearer"));
+    }
+
+    @Test
+    void changePasswordReturnsNoContent() throws Exception {
+        ChangePasswordRequest request = new ChangePasswordRequest("Password1!", "NewPassword1!");
+
+        mockMvc.perform(put("/api/auth/change-password")
+                .contentType("application/json")
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isNoContent());
     }
 }
