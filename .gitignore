@@ -7,3 +7,7 @@
 /.m2repo/
 mvnw
 mvnw.cmd
+
+# Antigravity local agent skills
+.agent/
+.agents/
