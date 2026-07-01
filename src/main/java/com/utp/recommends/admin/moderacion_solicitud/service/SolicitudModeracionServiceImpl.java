@@ -165,6 +165,9 @@ public class SolicitudModeracionServiceImpl implements SolicitudModeracionServic
         curso.setTipo(tipoCurso);
         curso.setEstado(EstadoSimple.ACTIVO);
         if (tipoCurso == TipoCurso.CARRERA) {
+            if (request.carreraId() == null) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "Debe enviar una carrera activa");
+            }
             Carrera carrera = carreraRepository.findById(request.carreraId())
                 .filter(c -> c.getEstado() == EstadoCarrera.ACTIVA)
                 .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "Debe enviar una carrera activa"));
