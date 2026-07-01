@@ -98,7 +98,7 @@ public class ResenaEstudianteServiceImpl implements ResenaEstudianteService {
             ResenaCalificacion calificacion = new ResenaCalificacion();
             calificacion.setResena(resena);
             calificacion.setCriterio(criteriosPorId.get(item.criterioId()));
-            calificacion.setPuntaje(item.puntaje());
+            calificacion.setPuntaje(item.puntaje().byteValue());
             resena.getCalificaciones().add(calificacion);
         }
 
@@ -154,7 +154,7 @@ public class ResenaEstudianteServiceImpl implements ResenaEstudianteService {
             resena.getMotivoRechazo(),
             resena.getFechaCreacion(),
             resena.getCalificaciones().stream()
-                .map(c -> new ResenaCalificacionResponse(c.getCriterio().getId(), c.getCriterio().getNombre(), c.getPuntaje()))
+                .map(c -> new ResenaCalificacionResponse(c.getCriterio().getId(), c.getCriterio().getNombre(), c.getPuntaje().intValue()))
                 .toList()
         );
     }

@@ -2,6 +2,7 @@ package com.utp.recommends.estudiante;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.utp.recommends.common.exception.BusinessException;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -73,6 +75,28 @@ class ResenaServiceTest {
         var response = service.crear(new ResenaCreateRequest(1L, "Comentario valido", false, List.of(new CriterioPuntajeRequest(1L, 5))));
 
         assertThat(response.version()).isEqualTo(3);
+    }
+
+    @Test
+    void savesReviewScoresAsByteValues() {
+        Estudiante estudiante = new Estudiante();
+        estudiante.setId(1L);
+        CursoDocente cursoDocente = cursoDocente();
+        CriterioCalificacion criterio = criterio();
+        ArgumentCaptor<Resena> captor = ArgumentCaptor.forClass(Resena.class);
+
+        when(authenticatedUserService.getCurrentEstudiante()).thenReturn(estudiante);
+        when(cursoDocenteRepository.findByIdAndEstado(1L, EstadoSimple.ACTIVO)).thenReturn(Optional.of(cursoDocente));
+        when(criterioRepository.findByEstado(EstadoSimple.ACTIVO)).thenReturn(List.of(criterio));
+        when(resenaRepository.findActiveByStudentAndCursoDocente(1L, 1L, java.util.EnumSet.of(EstadoResena.PENDIENTE, EstadoResena.APROBADA))).thenReturn(Optional.empty());
+        when(resenaRepository.findTopByEstudianteIdAndCursoDocenteIdOrderByVersionDesc(1L, 1L)).thenReturn(Optional.empty());
+        when(resenaRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.crear(new ResenaCreateRequest(1L, "Comentario valido", false, List.of(new CriterioPuntajeRequest(1L, 5))));
+
+        org.mockito.Mockito.verify(resenaRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getCalificaciones()).hasSize(1);
+        assertThat(captor.getValue().getCalificaciones().getFirst().getPuntaje()).isEqualTo(Byte.valueOf((byte) 5));
     }
 
     private CursoDocente cursoDocente() {

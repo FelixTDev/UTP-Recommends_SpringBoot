@@ -17,7 +17,7 @@ public class ResenaCalificacion {
     @JoinColumn(name = "criterio_id", nullable = false)
     private CriterioCalificacion criterio;
     @Column(name = "puntaje", nullable = false)
-    private Integer puntaje;
+    private Byte puntaje;
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -27,6 +27,6 @@ public class ResenaCalificacion {
     public void setResena(Resena resena) { this.resena = resena; }
     public CriterioCalificacion getCriterio() { return criterio; }
     public void setCriterio(CriterioCalificacion criterio) { this.criterio = criterio; }
-    public Integer getPuntaje() { return puntaje; }
-    public void setPuntaje(Integer puntaje) { this.puntaje = puntaje; }
+    public Byte getPuntaje() { return puntaje; }
+    public void setPuntaje(Byte puntaje) { this.puntaje = puntaje; }
 }

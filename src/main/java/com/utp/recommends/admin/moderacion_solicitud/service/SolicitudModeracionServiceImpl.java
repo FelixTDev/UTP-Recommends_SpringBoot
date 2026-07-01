@@ -107,7 +107,7 @@ public class SolicitudModeracionServiceImpl implements SolicitudModeracionServic
             ResenaCalificacion calificacion = new ResenaCalificacion();
             calificacion.setResena(resena);
             calificacion.setCriterio(criteriosPorId.get(puntaje.criterioId()));
-            calificacion.setPuntaje(puntaje.puntaje());
+            calificacion.setPuntaje(puntaje.puntaje().byteValue());
             resena.getCalificaciones().add(calificacion);
         }
         resena = resenaRepository.save(resena);

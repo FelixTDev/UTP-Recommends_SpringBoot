@@ -33,7 +33,7 @@ public class PublicResenaServiceImpl implements PublicResenaService {
                 resena.isEsAnonimo() ? null : resena.getEstudiante().getUsuario().getNombres() + " " + resena.getEstudiante().getUsuario().getApellidos(),
                 resena.getFechaCreacion(),
                 resena.getCalificaciones().stream()
-                    .map(c -> new PublicResenaCalificacionResponse(c.getCriterio().getNombre(), c.getPuntaje()))
+                    .map(c -> new PublicResenaCalificacionResponse(c.getCriterio().getNombre(), c.getPuntaje().intValue()))
                     .toList()
             ));
     }

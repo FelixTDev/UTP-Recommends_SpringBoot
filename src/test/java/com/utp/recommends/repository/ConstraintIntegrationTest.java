@@ -136,7 +136,7 @@ class ConstraintIntegrationTest extends AbstractContainerIntegrationTest {
         ResenaCalificacion calificacion = new ResenaCalificacion();
         calificacion.setResena(resena);
         calificacion.setCriterio(criterioRepository.findAll().getFirst());
-        calificacion.setPuntaje(6);
+        calificacion.setPuntaje((byte) 6);
 
         assertThatThrownBy(() -> resenaCalificacionRepository.saveAndFlush(calificacion))
             .isInstanceOf(DataIntegrityViolationException.class);
