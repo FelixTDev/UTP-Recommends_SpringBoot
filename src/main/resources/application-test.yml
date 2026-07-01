@@ -1,0 +1,13 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  jackson:
+    default-property-inclusion: non_null
+
+app:
+  security:
+    jwt:
+      secret: test_secret_key_with_at_least_32_characters
+      expiration-minutes: 30

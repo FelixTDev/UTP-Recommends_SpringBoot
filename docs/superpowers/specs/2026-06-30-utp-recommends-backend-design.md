@@ -26,7 +26,7 @@ Build the full backend for UTP+Recommends as a single Spring Boot 3.x applicatio
 
 ## 3. Technical Stack
 
-- Java 17
+- Java 21
 - Maven
 - Spring Boot 3.x
 - Spring Web

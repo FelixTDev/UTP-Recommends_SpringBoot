@@ -6,7 +6,7 @@
 
 **Architecture:** The backend is a single Spring Boot 3.x Maven application organized by actor and domain modules (`auth`, `admin`, `estudiante`, `publicapi`) with shared `security`, `domain`, `repository`, `common`, and `config` packages. All persistence maps exactly to the existing schema, uses DTO-based API contracts, and enforces business logic in services with transactional boundaries where required.
 
-**Tech Stack:** Java 17, Maven, Spring Boot 3.x, Spring Web, Spring Data JPA, Spring Security, Bean Validation, MySQL 8 driver, JWT (`jjwt`), JUnit 5, Mockito, MockMvc, Testcontainers MySQL 8
+**Tech Stack:** Java 21, Maven, Spring Boot 3.x, Spring Web, Spring Data JPA, Spring Security, Bean Validation, MySQL 8 driver, JWT (`jjwt`), JUnit 5, Mockito, MockMvc, Testcontainers MySQL 8
 
 ## Global Constraints
 
@@ -92,7 +92,7 @@ Expected: FAIL because `pom.xml` and application bootstrap classes do not exist 
     <artifactId>utp-recommends</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <properties>
-        <java.version>17</java.version>
+        <java.version>21</java.version>
         <jjwt.version>0.12.6</jjwt.version>
     </properties>
     <dependencies>
