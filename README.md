@@ -50,6 +50,8 @@ mvn "-Dmaven.repo.local=C:\WebProyecto\.m2repo" test
 mvn "-Dmaven.repo.local=C:\WebProyecto\.m2repo" clean install
 ```
 
+En este entorno la suite actual termina con `21` pruebas ejecutadas, `0` fallos, `0` errores y `5` `skipped`. Esos `5` casos corresponden a pruebas de integración con Testcontainers MySQL 8 y se omiten automáticamente cuando Docker no está disponible. Para la validación completa de integración se debe ejecutar la suite con Docker Desktop activo y un runtime Docker operativo.
+
 ## Endpoints principales
 
 - `POST /api/auth/register`
