@@ -1,31 +1,89 @@
 # UTP+Recommends Backend
 
-Backend Spring Boot para UTP+Recommends. Implementa autenticación JWT, catálogos administrativos, reseñas versionadas, solicitudes, moderación y listados públicos contra el schema MySQL existente.
+Backend Spring Boot para UTP+Recommends. Este proyecto implementa autenticacion JWT, seguridad con Spring Security, persistencia con JPA/Hibernate, CRUD administrativo, flujos de estudiante, moderacion y listados publicos.
 
-## Stack
+Este `README` esta organizado para servir como documentacion tecnica del avance y como guia de ejecucion y demostracion frente a las rubricas de Avance de Proyecto Final 01 y 02.
+
+## 1. Objetivo del avance
+
+El backend cubre estos objetivos del proyecto:
+
+- levantar correctamente un proyecto Spring Boot funcional;
+- exponer endpoints REST organizados por dominio y rol;
+- aplicar separacion por capas con inyeccion de dependencias;
+- conectar con MySQL mediante JPA/Hibernate;
+- implementar operaciones CRUD sobre recursos principales;
+- proteger rutas con Spring Security y roles;
+- autenticar usuarios mediante JWT;
+- incluir pruebas basicas y documentacion ejecutable.
+
+## 2. Tecnologias usadas
 
 - Java 21
-- Maven
-- Spring Boot 3.x
+- Maven 3.9+
+- Spring Boot 3.3.1
 - Spring Web
 - Spring Data JPA
 - Spring Security
 - MySQL 8
-- JUnit 5, Mockito, MockMvc
+- JWT (`jjwt`)
+- JUnit 5
+- Mockito
+- MockMvc
 - Testcontainers MySQL 8
 
-## Arquitectura
+## 3. Arquitectura y organizacion por capas
 
-Proyecto monolítico modular bajo `com.utp.recommends` con separación por `auth`, `admin`, `estudiante`, `publicapi`, `security`, `domain`, `repository`, `common` y `config`.
+El proyecto sigue una estructura modular bajo `com.utp.recommends`:
 
-## Requisitos
+- `auth`: login, registro, cambio de password y datos del usuario autenticado.
+- `admin`: catalogos, dashboard y moderacion.
+- `estudiante`: perfil, dashboard, resenas, solicitudes y busqueda de curso-docente.
+- `publicapi`: endpoints publicos para el buscador.
+- `security`: configuracion de Spring Security, JWT, filtros y acceso al usuario autenticado.
+- `domain`: entidades y enums de negocio.
+- `repository`: acceso a datos con JPA.
+- `common`: excepciones, respuestas y utilidades comunes.
+- `config`: bootstrap y configuracion transversal.
+
+Separacion de responsabilidades:
+
+- controladores: reciben requests HTTP y exponen rutas REST;
+- servicios: contienen logica de negocio y transacciones;
+- repositorios: acceso a persistencia;
+- entidades: mapeo JPA/Hibernate al schema MySQL.
+
+## 4. Requisitos previos
 
 - Java 21
-- Maven 3.9+
-- MySQL 8 con el schema ya implantado
-- Opcional: Docker para ejecutar las pruebas Testcontainers
+- Maven 3.9 o superior
+- MySQL 8 ejecutandose en `localhost:3306`
+- Base de datos `utp_recommends`
+- Schema ya creado en MySQL
+- Opcional: Docker Desktop para ejecutar pruebas con Testcontainers
 
-## Variables de entorno
+## 5. Configuracion de base de datos
+
+La aplicacion usa:
+
+- `spring.jpa.hibernate.ddl-auto=validate`
+- `spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect`
+- `spring.jpa.open-in-view=false`
+
+Implicancias:
+
+- Spring valida el schema existente;
+- no crea ni altera tablas automaticamente;
+- el schema debe existir antes de levantar la app;
+- las relaciones y transacciones deben resolverse desde la capa de servicio.
+
+Archivo base del schema:
+
+- `BD_UTPRECOMMENDS.sql`
+
+## 6. Variables de entorno
+
+Variables soportadas por el backend:
 
 - `SPRING_DATASOURCE_URL`
 - `SPRING_DATASOURCE_USERNAME`
@@ -37,8 +95,9 @@ Proyecto monolítico modular bajo `com.utp.recommends` con separación por `auth
 - `APP_BOOTSTRAP_ADMIN_PASSWORD`
 - `APP_BOOTSTRAP_ADMIN_NOMBRES`
 - `APP_BOOTSTRAP_ADMIN_APELLIDOS`
+- `APP_BOOTSTRAP_DEV_SEED_ENABLED`
 
-### PowerShell Windows
+Ejemplo en PowerShell:
 
 ```powershell
 $env:SPRING_DATASOURCE_URL="jdbc:mysql://localhost:3306/utp_recommends?useSSL=false&serverTimezone=America/Lima&allowPublicKeyRetrieval=true"
@@ -51,102 +110,297 @@ $env:APP_BOOTSTRAP_ADMIN_EMAIL="admin@utp.edu.pe"
 $env:APP_BOOTSTRAP_ADMIN_PASSWORD="Admin123!"
 $env:APP_BOOTSTRAP_ADMIN_NOMBRES="Administrador"
 $env:APP_BOOTSTRAP_ADMIN_APELLIDOS="Sistema"
+$env:APP_BOOTSTRAP_DEV_SEED_ENABLED="true"
 ```
 
-## Bootstrap admin local seguro
+## 7. Como ejecutar el backend
 
-El backend ya no depende de un `password_hash` placeholder para pruebas locales. Si necesitas un admin usable, habilita el bootstrap por variables de entorno y arranca la aplicación:
+### 7.1. Paso 1: crear o verificar la base de datos
+
+Ejecuta el script:
+
+- `BD_UTPRECOMMENDS.sql`
+
+Debe existir la base:
+
+- `utp_recommends`
+
+### 7.2. Paso 2: exportar variables
+
+En PowerShell, exporta las variables del bloque anterior. Ajusta usuario y password si tu instancia local no usa `root` con password vacio.
+
+### 7.3. Paso 3: levantar la aplicacion
 
 ```powershell
-$env:APP_BOOTSTRAP_ADMIN_ENABLED="true"
-$env:APP_BOOTSTRAP_ADMIN_EMAIL="admin@utp.edu.pe"
-$env:APP_BOOTSTRAP_ADMIN_PASSWORD="Admin123!"
-$env:APP_BOOTSTRAP_ADMIN_NOMBRES="Administrador"
-$env:APP_BOOTSTRAP_ADMIN_APELLIDOS="Sistema"
+mvn spring-boot:run
+```
+
+Si tu entorno usa repo local Maven especifico:
+
+```powershell
 mvn "-Dmaven.repo.local=C:\WebProyecto\.m2repo" spring-boot:run
 ```
 
-Notas:
+### 7.4. Verificacion esperada
 
-- El bootstrap está desactivado por defecto.
-- Cuando está activado, crea o actualiza el usuario admin configurado con BCrypt.
-- `APP_BOOTSTRAP_ADMIN_PASSWORD` debe cumplir la política de contraseña del sistema.
-- `BD_UTPRECOMMENDS.sql` puede seguir usándose como base del esquema, pero el admin operativo debe generarse con este mecanismo o con un hash BCrypt válido equivalente.
+La aplicacion debe:
 
-## Configuración de BD
+- compilar sin errores;
+- conectarse a MySQL;
+- validar el schema;
+- quedar accesible en `http://localhost:8080`.
 
-La aplicación usa `spring.jpa.hibernate.ddl-auto=validate` y `spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect`. No crea, actualiza ni elimina schema. El archivo `BD_UTPRECOMMENDS.sql` se usa solo como referencia de mapeo y como base para la inicialización de pruebas.
+## 8. Bootstrap admin y datos semilla
 
-## Ejecución
+### 8.1. Admin local seguro
 
-```bash
-mvn "-Dmaven.repo.local=C:\WebProyecto\.m2repo" spring-boot:run
-```
+Si activas:
 
-En PowerShell, exporta primero las variables anteriores y luego ejecuta el comando. Si tu instancia local usa otra base, usuario o contraseña, reemplázalos antes de arrancar.
+- `APP_BOOTSTRAP_ADMIN_ENABLED=true`
 
-## Pruebas
+el backend crea o actualiza el admin configurado con hash BCrypt.
 
-```bash
-mvn "-Dmaven.repo.local=C:\WebProyecto\.m2repo" test
-mvn "-Dmaven.repo.local=C:\WebProyecto\.m2repo" clean install
-```
+Credenciales de ejemplo:
 
-En este entorno la suite actual termina con `21` pruebas ejecutadas, `0` fallos, `0` errores y `5` `skipped`. Esos `5` casos corresponden a pruebas de integración con Testcontainers MySQL 8 y se omiten automáticamente cuando Docker no está disponible. Para la validación completa de integración se debe ejecutar la suite con Docker Desktop activo y un runtime Docker operativo.
+- correo: `admin@utp.edu.pe`
+- password: `Admin123!`
 
-## Troubleshooting MySQL
+### 8.2. Datos semilla de desarrollo
 
-### Error: `Unable to determine Dialect without JDBC metadata`
+Si activas:
 
-Si Spring Boot falla al crear `EntityManagerFactory` con ese error, valida en este orden:
+- `APP_BOOTSTRAP_DEV_SEED_ENABLED=true`
 
-- Que MySQL esté encendido y escuchando en `localhost:3306`.
-- Que el nombre de la base exista y sea exactamente `utp_recommends`.
-- Que `SPRING_DATASOURCE_USERNAME` y `SPRING_DATASOURCE_PASSWORD` sean los reales del entorno.
-- Que la URL JDBC efectiva incluya el host, puerto y base correctos.
-- Que el usuario tenga permisos sobre `utp_recommends`.
-- Que `spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect` siga configurado.
+la aplicacion carga datos de desarrollo para poblar el frontend.
 
-En este proyecto, un caso común es arrancar sin exportar variables y terminar usando un password distinto al real. Si tu instalación local usa `root` con contraseña vacía, en PowerShell debe quedar ` $env:SPRING_DATASOURCE_PASSWORD="" ` antes de ejecutar `spring-boot:run`.
+La semilla:
 
-Si después de corregir variables el error de dialect desaparece pero el arranque sigue fallando con `Schema-validation`, entonces la conexión ya fue resuelta y el siguiente bloqueo está en la validación estricta del schema existente contra los mapeos JPA.
+- es opcional;
+- es idempotente;
+- crea carreras, criterios, docentes, cursos y relaciones curso-docente;
+- crea estudiantes de prueba;
+- crea resenas aprobadas, pendientes y rechazadas;
+- crea una solicitud pendiente;
+- garantiza un admin utilizable para pruebas locales.
 
-## Endpoints principales
+## 9. Seguridad y autenticacion
+
+El backend implementa seguridad con Spring Security y JWT.
+
+Rutas publicas:
+
+- `POST /api/auth/login`
+- `POST /api/auth/register`
+- `GET /api/public/**`
+
+Rutas autenticadas:
+
+- `GET /api/auth/me`
+- `PUT /api/auth/change-password`
+- `GET /api/admin/**` requiere rol `ADMIN`
+- `GET /api/estudiante/**` requiere rol `ESTUDIANTE`
+
+Flujo JWT:
+
+1. el usuario se autentica con `POST /api/auth/login`;
+2. el backend devuelve un token JWT;
+3. el cliente envia `Authorization: Bearer <token>`;
+4. Spring Security valida token, rol y estado del usuario;
+5. la identidad autenticada se usa desde `AuthenticatedUserService`.
+
+## 10. Persistencia, transacciones y consistencia
+
+La persistencia se implementa con:
+
+- entidades JPA en `domain/entity`;
+- repositorios Spring Data JPA en `repository`;
+- servicios con transacciones para operaciones criticas.
+
+Evidencias tecnicas presentes en el proyecto:
+
+- relaciones JPA entre usuario, estudiante, carrera, curso, docente, resena y solicitud;
+- consultas derivadas y JPQL en repositorios;
+- validacion de restricciones de negocio antes de persistir;
+- uso de `@Transactional` en operaciones de escritura y lectura sensible;
+- control de consistencia para evitar resenas activas duplicadas por estudiante y curso-docente.
+
+## 11. CRUD y flujos implementados
+
+CRUD administrativos implementados:
+
+- usuarios
+- carreras
+- cursos
+- docentes
+- criterios
+- curso-docente
+
+Flujos de estudiante:
+
+- ver perfil
+- actualizar perfil
+- consultar dashboard
+- listar opciones activas de curso-docente
+- crear resena
+- listar mis resenas
+- ver detalle de mi resena
+- crear solicitud
+- listar mis solicitudes
+- ver detalle de mi solicitud
+
+Flujos de moderacion:
+
+- aprobar, rechazar y ocultar resenas
+- aprobar y rechazar solicitudes
+
+## 12. Rutas del backend
+
+### 12.1. Autenticacion
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/auth/me`
 - `PUT /api/auth/change-password`
-- `GET /api/admin/usuarios`
-- `GET /api/admin/carreras`
-- `GET /api/admin/docentes`
-- `GET /api/admin/cursos`
-- `GET /api/admin/curso-docente`
-- `GET /api/admin/criterios`
-- `POST /api/estudiante/resenas`
-- `GET /api/estudiante/curso-docente/activos`
+
+### 12.2. Publicas
+
+- `GET /api/public/carreras/activas`
+- `GET /api/public/criterios/activos`
+- `GET /api/public/resenas`
+- `GET /api/public/resenas/curso-docente/{cursoDocenteId}`
+- `GET /api/public/resenas/curso/{cursoId}`
+- `GET /api/public/resenas/promedios/curso-docente/{cursoDocenteId}`
+
+### 12.3. Estudiante
+
+- `GET /api/estudiante/dashboard`
 - `GET /api/estudiante/perfil`
 - `PUT /api/estudiante/perfil`
-- `GET /api/estudiante/dashboard`
+- `GET /api/estudiante/curso-docente/activos`
+- `POST /api/estudiante/resenas`
 - `GET /api/estudiante/resenas/mis-resenas`
+- `GET /api/estudiante/resenas/mis-resenas/{id}`
 - `POST /api/estudiante/solicitudes`
 - `GET /api/estudiante/solicitudes/mis-solicitudes`
+- `GET /api/estudiante/solicitudes/mis-solicitudes/{id}`
+
+### 12.4. Admin
+
 - `GET /api/admin/dashboard`
+- `POST /api/admin/usuarios`
+- `GET /api/admin/usuarios`
+- `GET /api/admin/usuarios/{id}`
+- `PUT /api/admin/usuarios/{id}`
+- `PATCH /api/admin/usuarios/{id}/estado`
+- `POST /api/admin/carreras`
+- `GET /api/admin/carreras`
+- `PUT /api/admin/carreras/{id}`
+- `DELETE /api/admin/carreras/{id}`
+- `POST /api/admin/cursos`
+- `GET /api/admin/cursos`
+- `PUT /api/admin/cursos/{id}`
+- `DELETE /api/admin/cursos/{id}`
+- `POST /api/admin/docentes`
+- `GET /api/admin/docentes`
+- `PUT /api/admin/docentes/{id}`
+- `DELETE /api/admin/docentes/{id}`
+- `POST /api/admin/criterios`
+- `GET /api/admin/criterios`
+- `PUT /api/admin/criterios/{id}`
+- `PATCH /api/admin/criterios/{id}/estado`
+- `POST /api/admin/curso-docente`
+- `GET /api/admin/curso-docente`
+- `GET /api/admin/cursos/{cursoId}/docentes`
+- `GET /api/admin/docentes/{docenteId}/cursos`
+- `PATCH /api/admin/curso-docente/{id}/estado`
 - `GET /api/admin/moderacion/resenas`
+- `POST /api/admin/moderacion/resenas/{id}/aprobar`
+- `POST /api/admin/moderacion/resenas/{id}/rechazar`
+- `POST /api/admin/moderacion/resenas/{id}/ocultar`
 - `GET /api/admin/moderacion/solicitudes`
-- `GET /api/public/resenas`
+- `POST /api/admin/moderacion/solicitudes/{id}/aprobar`
+- `POST /api/admin/moderacion/solicitudes/{id}/rechazar`
 
-## Reglas clave
+## 13. Pruebas
 
-- Los flujos de estudiante resuelven identidad desde JWT, no desde body.
-- Las reseñas públicas anónimas no exponen identidad.
-- Los cursos `GENERAL` fuerzan `carrera_id = null`.
-- Las reseñas activas no se duplican para la misma combinación estudiante + curso-docente.
-- La aprobación de solicitudes exige calificaciones explícitas para todos los criterios activos.
+Comandos:
 
-## Evidencias sugeridas
+```powershell
+mvn test
+mvn clean install
+```
 
-- Resultado de `mvn test`
-- Resultado de `mvn clean install`
-- Evidencia de 401/403 en rutas protegidas
-- Evidencia de reseñas públicas anónimas sin identidad visible
+Si usas repo local Maven:
+
+```powershell
+mvn "-Dmaven.repo.local=C:\WebProyecto\.m2repo" test
+mvn "-Dmaven.repo.local=C:\WebProyecto\.m2repo" clean install
+```
+
+Alcance esperado:
+
+- validacion de endpoints;
+- validacion de autenticacion y seguridad;
+- validacion de reglas de negocio;
+- soporte de pruebas de integracion con Testcontainers cuando Docker esta disponible.
+
+## 14. Evidencias sugeridas para sustento
+
+Para alinearte con las rubricas, conviene mostrar:
+
+- proyecto ejecutando en local sin errores;
+- evidencia de conexion exitosa a MySQL;
+- evidencia de login JWT y uso del token;
+- pruebas ejecutadas con `mvn test`;
+- ejemplos de rutas publicas, de estudiante y de admin;
+- evidencia de 401 o 403 en rutas protegidas sin token o con rol incorrecto;
+- evidencia de CRUD admin funcionando;
+- evidencia de persistencia real en base de datos;
+- evidencia de moderacion de resenas y solicitudes;
+- captura o export de respuestas JSON representativas.
+
+## 15. Troubleshooting
+
+### Error: `Unable to determine Dialect without JDBC metadata`
+
+Revisa:
+
+- que MySQL este encendido;
+- que la base `utp_recommends` exista;
+- que usuario y password sean correctos;
+- que la URL JDBC apunte a host, puerto y base correctos;
+- que el usuario tenga permisos;
+- que `spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect` siga configurado.
+
+### Error de schema validation
+
+Si desaparece el error de conexion pero aparece `Schema-validation`, significa que:
+
+- Spring ya pudo conectarse;
+- el problema ahora es diferencia entre el schema real y los mapeos JPA.
+
+### Error 401 o 403
+
+Revisa:
+
+- si el token JWT fue generado correctamente;
+- si se envia `Authorization: Bearer <token>`;
+- si el usuario tiene el rol adecuado;
+- si el usuario esta `ACTIVO`.
+
+## 16. Estado del avance frente a rubricas
+
+Este backend documenta evidencia para:
+
+- APF 01:
+  - estructura Spring Boot y configuracion del entorno;
+  - controladores y endpoints REST;
+  - inyeccion de dependencias y organizacion por capas;
+  - pruebas basicas;
+  - README tecnico con ejecucion y evidencias.
+- APF 02:
+  - persistencia con JPA/Hibernate;
+  - operaciones CRUD;
+  - consultas, transacciones y consistencia;
+  - seguridad con Spring Security;
+  - autenticacion JWT y documentacion tecnica.
