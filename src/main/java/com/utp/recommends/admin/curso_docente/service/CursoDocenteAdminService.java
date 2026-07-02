@@ -12,6 +12,7 @@ import com.utp.recommends.repository.DocenteRepository;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CursoDocenteAdminService {
@@ -33,9 +34,16 @@ public class CursoDocenteAdminService {
         entity.setEstado(request.estado() == null ? EstadoSimple.ACTIVO : request.estado());
         return toResponse(repository.save(entity));
     }
+
+    @Transactional(readOnly = true)
     public List<CursoDocenteResponse> list() { return repository.findAll().stream().map(this::toResponse).toList(); }
+
+    @Transactional(readOnly = true)
     public List<CursoDocenteResponse> listByCurso(Long cursoId) { return repository.findByCursoId(cursoId).stream().map(this::toResponse).toList(); }
+
+    @Transactional(readOnly = true)
     public List<CursoDocenteResponse> listByDocente(Long docenteId) { return repository.findByDocenteId(docenteId).stream().map(this::toResponse).toList(); }
+
     public CursoDocenteResponse updateEstado(Long id, CursoDocenteEstadoRequest request) {
         CursoDocente entity = repository.findById(id).orElseThrow();
         entity.setEstado(request.estado());

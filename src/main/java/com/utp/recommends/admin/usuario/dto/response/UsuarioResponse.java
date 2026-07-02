@@ -6,6 +6,10 @@ public record UsuarioResponse(
     String nombres,
     String apellidos,
     String rol,
-    String estado
+    String estado,
+    String codigoEstudiante,
+    Long carreraId,
+    String carreraNombre,
+    long totalResenas
 ) {
 }

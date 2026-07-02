@@ -9,6 +9,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PublicResenaServiceImpl implements PublicResenaService {
@@ -22,6 +23,7 @@ public class PublicResenaServiceImpl implements PublicResenaService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<PublicResenaResponse> listar(Long cursoId, Long cursoDocenteId, Pageable pageable) {
         return resenaRepository.findPublicApproved(cursoId, cursoDocenteId, pageable)
             .map(resena -> new PublicResenaResponse(
@@ -39,6 +41,7 @@ public class PublicResenaServiceImpl implements PublicResenaService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PromedioCriterioResponse> promediosPorCursoDocente(Long cursoDocenteId) {
         return resenaCalificacionRepository.averageByCursoDocente(cursoDocenteId).stream()
             .map(row -> new PromedioCriterioResponse((String) row[0], ((Number) row[1]).doubleValue()))
