@@ -110,12 +110,14 @@ public class ResenaEstudianteServiceImpl implements ResenaEstudianteService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ResenaResponse> listarMisResenas(Pageable pageable) {
         Estudiante estudiante = authenticatedUserService.getCurrentEstudiante();
         return resenaRepository.findByEstudianteId(estudiante.getId(), pageable).map(this::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ResenaResponse obtenerMiResena(Long id) {
         Estudiante estudiante = authenticatedUserService.getCurrentEstudiante();
         Resena resena = resenaRepository.findById(id)
