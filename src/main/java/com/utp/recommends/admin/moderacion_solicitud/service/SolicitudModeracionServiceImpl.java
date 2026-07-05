@@ -68,8 +68,16 @@ public class SolicitudModeracionServiceImpl implements SolicitudModeracionServic
 
     @Override
     @Transactional(readOnly = true)
-    public List<ModeracionSolicitudResponse> pendientes() {
-        return solicitudRepository.findByEstadoOrderByFechaCreacionAsc(EstadoSolicitud.PENDIENTE).stream().map(this::toResponse).toList();
+    public List<ModeracionSolicitudResponse> pendientes(String estado) {
+        com.utp.recommends.domain.enums.EstadoSolicitud targetEstado = com.utp.recommends.domain.enums.EstadoSolicitud.PENDIENTE;
+        if (estado != null && !estado.isBlank()) {
+            try {
+                targetEstado = com.utp.recommends.domain.enums.EstadoSolicitud.valueOf(estado.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // fallback to PENDIENTE
+            }
+        }
+        return solicitudRepository.findByEstadoOrderByFechaCreacionAsc(targetEstado).stream().map(this::toResponse).toList();
     }
 
     @Override

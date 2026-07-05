@@ -5,7 +5,7 @@ import com.utp.recommends.admin.moderacion_solicitud.dto.response.ModeracionSoli
 import java.util.List;
 
 public interface SolicitudModeracionService {
-    List<ModeracionSolicitudResponse> pendientes();
+    List<ModeracionSolicitudResponse> pendientes(String estado);
     ModeracionSolicitudResponse aprobar(Long solicitudId, AprobarSolicitudRequest request);
     ModeracionSolicitudResponse rechazar(Long solicitudId, String motivoRechazo);
 }

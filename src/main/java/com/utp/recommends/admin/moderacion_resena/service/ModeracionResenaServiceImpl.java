@@ -21,7 +21,17 @@ public class ModeracionResenaServiceImpl implements ModeracionResenaService {
         this.resenaRepository = resenaRepository;
         this.authenticatedUserService = authenticatedUserService;
     }
-    @Override @Transactional(readOnly = true) public List<ModeracionResenaResponse> pendientes() { return resenaRepository.findByEstadoOrderByFechaCreacionAsc(EstadoResena.PENDIENTE).stream().map(this::toResponse).toList(); }
+    @Override @Transactional(readOnly = true) public List<ModeracionResenaResponse> pendientes(String estado) {
+        com.utp.recommends.domain.enums.EstadoResena targetEstado = com.utp.recommends.domain.enums.EstadoResena.PENDIENTE;
+        if (estado != null && !estado.isBlank()) {
+            try {
+                targetEstado = com.utp.recommends.domain.enums.EstadoResena.valueOf(estado.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // fallback to PENDIENTE
+            }
+        }
+        return resenaRepository.findByEstadoOrderByFechaCreacionAsc(targetEstado).stream().map(this::toResponse).toList();
+    }
     @Override @Transactional public ModeracionResenaResponse aprobar(Long id) { Resena r = requirePendiente(id); r.setEstado(EstadoResena.APROBADA); r.setAdminModerador(authenticatedUserService.getCurrentUsuario()); r.setFechaModeracion(OffsetDateTime.now()); return toResponse(resenaRepository.save(r)); }
     @Override @Transactional public ModeracionResenaResponse rechazar(Long id, String motivoRechazo) { if (motivoRechazo == null || motivoRechazo.isBlank()) throw new BusinessException(HttpStatus.BAD_REQUEST, "El motivo de rechazo es obligatorio"); Resena r = requirePendiente(id); r.setEstado(EstadoResena.RECHAZADA); r.setMotivoRechazo(motivoRechazo); r.setAdminModerador(authenticatedUserService.getCurrentUsuario()); r.setFechaModeracion(OffsetDateTime.now()); return toResponse(resenaRepository.save(r)); }
     @Override @Transactional public ModeracionResenaResponse ocultar(Long id) { Resena r = resenaRepository.findById(id).orElseThrow(); if (r.getEstado() != EstadoResena.APROBADA) throw new BusinessException(HttpStatus.CONFLICT, "Solo se puede ocultar una reseña aprobada"); r.setEstado(EstadoResena.OCULTA); r.setAdminModerador(authenticatedUserService.getCurrentUsuario()); r.setFechaModeracion(OffsetDateTime.now()); return toResponse(resenaRepository.save(r)); }
