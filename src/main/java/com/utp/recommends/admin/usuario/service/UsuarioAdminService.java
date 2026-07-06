@@ -46,6 +46,7 @@ public class UsuarioAdminService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Transactional
     public UsuarioResponse create(UsuarioCreateRequest request) {
         if (usuarioRepository.existsByEmail(request.email())) {
             throw new BusinessException(HttpStatus.CONFLICT, "El correo ya está registrado");
@@ -82,6 +83,7 @@ public class UsuarioAdminService {
         return toResponse(u);
     }
 
+    @Transactional
     public UsuarioResponse update(Long id, UsuarioUpdateRequest request) {
         var u = usuarioRepository.findById(id).orElseThrow();
         if (!u.getEmail().equalsIgnoreCase(request.email()) && usuarioRepository.existsByEmail(request.email())) {
@@ -100,6 +102,7 @@ public class UsuarioAdminService {
         return toResponse(usuarioRepository.findById(u.getId()).orElseThrow());
     }
 
+    @Transactional
     public UsuarioResponse updateEstado(Long id, UsuarioEstadoRequest request) {
         var u = usuarioRepository.findById(id).orElseThrow();
         u.setEstado(request.estado());

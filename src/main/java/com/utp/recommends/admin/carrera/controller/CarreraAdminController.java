@@ -1,5 +1,6 @@
 package com.utp.recommends.admin.carrera.controller;
 
+import com.utp.recommends.admin.carrera.dto.request.CarreraEstadoRequest;
 import com.utp.recommends.admin.carrera.dto.request.CarreraRequest;
 import com.utp.recommends.admin.carrera.dto.response.CarreraResponse;
 import com.utp.recommends.admin.carrera.service.CarreraAdminService;
@@ -16,5 +17,6 @@ public class CarreraAdminController {
     @PostMapping @ResponseStatus(HttpStatus.CREATED) public CarreraResponse create(@Valid @RequestBody CarreraRequest request) { return service.create(request); }
     @GetMapping public List<CarreraResponse> list() { return service.list(); }
     @PutMapping("/{id}") public CarreraResponse update(@PathVariable Long id, @Valid @RequestBody CarreraRequest request) { return service.update(id, request); }
+    @PatchMapping("/{id}/estado") public CarreraResponse updateEstado(@PathVariable Long id, @Valid @RequestBody CarreraEstadoRequest request) { return service.updateEstado(id, request); }
     @DeleteMapping("/{id}") public CarreraResponse inactivate(@PathVariable Long id) { return service.inactivate(id); }
 }

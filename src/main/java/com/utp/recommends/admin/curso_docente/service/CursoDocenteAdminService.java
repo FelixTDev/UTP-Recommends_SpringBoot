@@ -24,6 +24,7 @@ public class CursoDocenteAdminService {
         this.cursoRepository = cursoRepository;
         this.docenteRepository = docenteRepository;
     }
+    @Transactional
     public CursoDocenteResponse create(CursoDocenteRequest request) {
         if (repository.findByCursoIdAndDocenteId(request.cursoId(), request.docenteId()).isPresent()) {
             throw new BusinessException(HttpStatus.CONFLICT, "La relación curso-docente ya existe");
@@ -44,6 +45,7 @@ public class CursoDocenteAdminService {
     @Transactional(readOnly = true)
     public List<CursoDocenteResponse> listByDocente(Long docenteId) { return repository.findByDocenteId(docenteId).stream().map(this::toResponse).toList(); }
 
+    @Transactional
     public CursoDocenteResponse updateEstado(Long id, CursoDocenteEstadoRequest request) {
         CursoDocente entity = repository.findById(id).orElseThrow();
         entity.setEstado(request.estado());

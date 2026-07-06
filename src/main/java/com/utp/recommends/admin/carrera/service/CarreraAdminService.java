@@ -1,5 +1,6 @@
 package com.utp.recommends.admin.carrera.service;
 
+import com.utp.recommends.admin.carrera.dto.request.CarreraEstadoRequest;
 import com.utp.recommends.admin.carrera.dto.request.CarreraRequest;
 import com.utp.recommends.admin.carrera.dto.response.CarreraResponse;
 import com.utp.recommends.domain.entity.Carrera;
@@ -7,8 +8,10 @@ import com.utp.recommends.domain.enums.EstadoCarrera;
 import com.utp.recommends.repository.CarreraRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class CarreraAdminService {
     private final CarreraRepository carreraRepository;
     public CarreraAdminService(CarreraRepository carreraRepository) { this.carreraRepository = carreraRepository; }
@@ -29,6 +32,11 @@ public class CarreraAdminService {
     public CarreraResponse inactivate(Long id) {
         Carrera carrera = carreraRepository.findById(id).orElseThrow();
         carrera.setEstado(EstadoCarrera.INACTIVA);
+        return toResponse(carreraRepository.save(carrera));
+    }
+    public CarreraResponse updateEstado(Long id, CarreraEstadoRequest request) {
+        Carrera carrera = carreraRepository.findById(id).orElseThrow();
+        carrera.setEstado(request.estado());
         return toResponse(carreraRepository.save(carrera));
     }
     private CarreraResponse toResponse(Carrera carrera) { return new CarreraResponse(carrera.getId(), carrera.getNombre(), carrera.getEstado().name()); }

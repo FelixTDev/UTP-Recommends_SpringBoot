@@ -1,5 +1,6 @@
 package com.utp.recommends.admin.docente.service;
 
+import com.utp.recommends.admin.docente.dto.request.DocenteEstadoRequest;
 import com.utp.recommends.admin.docente.dto.request.DocenteRequest;
 import com.utp.recommends.admin.docente.dto.response.DocenteResponse;
 import com.utp.recommends.domain.entity.Docente;
@@ -7,8 +8,10 @@ import com.utp.recommends.domain.enums.EstadoSimple;
 import com.utp.recommends.repository.DocenteRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class DocenteAdminService {
     private final DocenteRepository docenteRepository;
     public DocenteAdminService(DocenteRepository docenteRepository) { this.docenteRepository = docenteRepository; }
@@ -32,6 +35,11 @@ public class DocenteAdminService {
     public DocenteResponse inactivate(Long id) {
         Docente docente = docenteRepository.findById(id).orElseThrow();
         docente.setEstado(EstadoSimple.INACTIVO);
+        return toResponse(docenteRepository.save(docente));
+    }
+    public DocenteResponse updateEstado(Long id, DocenteEstadoRequest request) {
+        Docente docente = docenteRepository.findById(id).orElseThrow();
+        docente.setEstado(request.estado());
         return toResponse(docenteRepository.save(docente));
     }
     private DocenteResponse toResponse(Docente docente) { return new DocenteResponse(docente.getId(), docente.getNombres(), docente.getApellidos(), docente.getEmail(), docente.getEstado().name()); }
