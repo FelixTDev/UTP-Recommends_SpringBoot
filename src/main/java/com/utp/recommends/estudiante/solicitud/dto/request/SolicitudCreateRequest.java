@@ -9,6 +9,8 @@ public record SolicitudCreateRequest(
     String nombreCursoSugerido,
     Long carreraSugeridaId,
     String nombreDocenteSugerido,
+    String nombresDocenteSugerido,
+    String apellidosDocenteSugerido,
     @NotBlank String comentario
 ) {
 }

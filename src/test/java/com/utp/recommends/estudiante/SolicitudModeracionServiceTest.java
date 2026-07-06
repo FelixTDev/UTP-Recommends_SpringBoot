@@ -14,6 +14,7 @@ import com.utp.recommends.domain.entity.Docente;
 import com.utp.recommends.domain.entity.Estudiante;
 import com.utp.recommends.domain.entity.Resena;
 import com.utp.recommends.domain.entity.CriterioCalificacion;
+import com.utp.recommends.domain.entity.CursoDocente;
 import com.utp.recommends.domain.entity.Solicitud;
 import com.utp.recommends.domain.entity.Usuario;
 import com.utp.recommends.domain.enums.EstadoSimple;
@@ -59,7 +60,7 @@ class SolicitudModeracionServiceTest {
         solicitud.setEstado(EstadoSolicitud.PENDIENTE);
         solicitud.setTipo(TipoSolicitud.AMBOS);
         solicitud.setNombreCursoSugerido("POO");
-        solicitud.setNombreDocenteSugerido("Luis");
+        solicitud.setNombreDocenteSugerido("Luis|Garcia");
         when(solicitudRepository.findById(1L)).thenReturn(Optional.of(solicitud));
         CriterioCalificacion criterio = new CriterioCalificacion();
         criterio.setId(1L);
@@ -77,7 +78,7 @@ class SolicitudModeracionServiceTest {
         solicitud.setEstado(EstadoSolicitud.PENDIENTE);
         solicitud.setTipo(TipoSolicitud.AMBOS);
         solicitud.setNombreCursoSugerido("POO");
-        solicitud.setNombreDocenteSugerido("Luis");
+        solicitud.setNombreDocenteSugerido("Luis|Garcia");
         solicitud.setComentario("Comentario valido");
         solicitud.setEstudiante(estudiante());
 
@@ -142,6 +143,96 @@ class SolicitudModeracionServiceTest {
             .hasMessageContaining("docente activo");
     }
 
+    @Test
+    void createsTeacherFromCanonicalLegacyValueWithoutGuessing() {
+        Solicitud solicitud = new Solicitud();
+        solicitud.setId(3L);
+        solicitud.setEstado(EstadoSolicitud.PENDIENTE);
+        solicitud.setTipo(TipoSolicitud.DOCENTE_NUEVO);
+        solicitud.setNombreDocenteSugerido("  Diego   Soca | Elme  ");
+        solicitud.setComentario("Comentario valido");
+        solicitud.setEstudiante(estudiante());
+
+        CriterioCalificacion criterio = new CriterioCalificacion();
+        criterio.setId(1L);
+        criterio.setEstado(EstadoSimple.ACTIVO);
+
+        Curso curso = new Curso();
+        curso.setId(5L);
+        curso.setNombre("Base de Datos");
+
+        Usuario admin = admin();
+        ArgumentCaptor<Docente> docenteCaptor = ArgumentCaptor.forClass(Docente.class);
+
+        when(solicitudRepository.findById(3L)).thenReturn(Optional.of(solicitud));
+        when(criterioRepository.findByEstado(EstadoSimple.ACTIVO)).thenReturn(List.of(criterio));
+        when(authenticatedUserService.getCurrentUsuario()).thenReturn(admin);
+        when(cursoRepository.findByIdAndEstado(5L, EstadoSimple.ACTIVO)).thenReturn(Optional.of(curso));
+        when(docenteRepository.save(any())).thenAnswer(inv -> {
+            Docente docente = inv.getArgument(0);
+            docente.setId(7L);
+            return docente;
+        });
+        when(cursoDocenteRepository.findByCursoIdAndDocenteId(5L, 7L)).thenReturn(Optional.empty());
+        when(cursoDocenteRepository.save(any())).thenAnswer(inv -> {
+            CursoDocente cd = inv.getArgument(0);
+            cd.setId(8L);
+            return cd;
+        });
+        when(resenaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(solicitudRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.aprobar(3L, new AprobarSolicitudRequest(null, null, 5L, null, List.of(new CriterioPuntajeRequest(1L, 5))));
+
+        org.mockito.Mockito.verify(docenteRepository).save(docenteCaptor.capture());
+        assertThat(docenteCaptor.getValue().getNombres()).isEqualTo("Diego Soca");
+        assertThat(docenteCaptor.getValue().getApellidos()).isEqualTo("Elme");
+    }
+
+    @Test
+    void rejectsApprovalWhenStoredTeacherNameHasNoStrictSeparator() {
+        Solicitud solicitud = new Solicitud();
+        solicitud.setId(4L);
+        solicitud.setEstado(EstadoSolicitud.PENDIENTE);
+        solicitud.setTipo(TipoSolicitud.DOCENTE_NUEVO);
+        solicitud.setNombreDocenteSugerido("Dr. Armando Paredes");
+        solicitud.setComentario("Comentario valido");
+        solicitud.setEstudiante(estudiante());
+
+        CriterioCalificacion criterio = new CriterioCalificacion();
+        criterio.setId(1L);
+        criterio.setEstado(EstadoSimple.ACTIVO);
+
+        when(solicitudRepository.findById(4L)).thenReturn(Optional.of(solicitud));
+        when(criterioRepository.findByEstado(EstadoSimple.ACTIVO)).thenReturn(List.of(criterio));
+
+        assertThatThrownBy(() -> service.aprobar(4L, new AprobarSolicitudRequest(null, null, 5L, null, List.of(new CriterioPuntajeRequest(1L, 5)))))
+            .isInstanceOf(BusinessException.class)
+            .hasMessageContaining("formato exacto nombres|apellidos");
+    }
+
+    @Test
+    void rejectsApprovalWhenStoredTeacherNameUsesPlaceholderSurname() {
+        Solicitud solicitud = new Solicitud();
+        solicitud.setId(5L);
+        solicitud.setEstado(EstadoSolicitud.PENDIENTE);
+        solicitud.setTipo(TipoSolicitud.DOCENTE_NUEVO);
+        solicitud.setNombreDocenteSugerido("Armando|Sin Apellido");
+        solicitud.setComentario("Comentario valido");
+        solicitud.setEstudiante(estudiante());
+
+        CriterioCalificacion criterio = new CriterioCalificacion();
+        criterio.setId(1L);
+        criterio.setEstado(EstadoSimple.ACTIVO);
+
+        when(solicitudRepository.findById(5L)).thenReturn(Optional.of(solicitud));
+        when(criterioRepository.findByEstado(EstadoSimple.ACTIVO)).thenReturn(List.of(criterio));
+
+        assertThatThrownBy(() -> service.aprobar(5L, new AprobarSolicitudRequest(null, null, 5L, null, List.of(new CriterioPuntajeRequest(1L, 5)))))
+            .isInstanceOf(BusinessException.class)
+            .hasMessageContaining("relleno");
+    }
+
     private Estudiante estudiante() {
         Usuario usuario = new Usuario();
         usuario.setId(10L);
@@ -159,5 +250,17 @@ class SolicitudModeracionServiceTest {
         estudiante.setCarrera(carrera);
         estudiante.setCodigoEstudiante("U12345678");
         return estudiante;
+    }
+
+    private Usuario admin() {
+        Usuario admin = new Usuario();
+        admin.setId(99L);
+        admin.setEmail("admin@utp.edu.pe");
+        admin.setPasswordHash("hash");
+        admin.setNombres("Admin");
+        admin.setApellidos("UTP");
+        admin.setRol(RolUsuario.ADMIN);
+        admin.setEstado(EstadoUsuario.ACTIVO);
+        return admin;
     }
 }

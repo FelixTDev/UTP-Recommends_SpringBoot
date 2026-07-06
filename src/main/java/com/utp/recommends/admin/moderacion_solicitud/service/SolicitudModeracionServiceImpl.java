@@ -3,6 +3,8 @@ package com.utp.recommends.admin.moderacion_solicitud.service;
 import com.utp.recommends.admin.moderacion_solicitud.dto.request.AprobarSolicitudRequest;
 import com.utp.recommends.admin.moderacion_solicitud.dto.response.ModeracionSolicitudResponse;
 import com.utp.recommends.common.exception.BusinessException;
+import com.utp.recommends.common.validation.SuggestedTeacherName;
+import com.utp.recommends.common.validation.SuggestedTeacherNameParser;
 import com.utp.recommends.domain.entity.Carrera;
 import com.utp.recommends.domain.entity.CriterioCalificacion;
 import com.utp.recommends.domain.entity.Curso;
@@ -153,9 +155,13 @@ public class SolicitudModeracionServiceImpl implements SolicitudModeracionServic
                 .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "Debe enviar un docente activo para aprobar una solicitud CURSO_NUEVO"));
         }
         if (solicitud.getTipo() == TipoSolicitud.DOCENTE_NUEVO || solicitud.getTipo() == TipoSolicitud.AMBOS) {
+            SuggestedTeacherName parsed = SuggestedTeacherNameParser.fromLegacyValue(
+                solicitud.getNombreDocenteSugerido(),
+                "nombreDocenteSugerido"
+            );
             Docente docente = new Docente();
-            docente.setNombres(solicitud.getNombreDocenteSugerido().trim());
-            docente.setApellidos("Sin Apellido");
+            docente.setNombres(parsed.nombres());
+            docente.setApellidos(parsed.apellidos());
             docente.setEstado(EstadoSimple.ACTIVO);
             return docenteRepository.save(docente);
         }
@@ -219,10 +225,24 @@ public class SolicitudModeracionServiceImpl implements SolicitudModeracionServic
                 solicitud.getNombreCursoSugerido(),
                 solicitud.getCarreraSugerida() == null ? null : solicitud.getCarreraSugerida().getId(),
                 solicitud.getCarreraSugerida() == null ? null : solicitud.getCarreraSugerida().getNombre(),
-                solicitud.getNombreDocenteSugerido()
+                solicitud.getNombreDocenteSugerido(),
+                extractTeacherNamePart(solicitud.getNombreDocenteSugerido(), true),
+                extractTeacherNamePart(solicitud.getNombreDocenteSugerido(), false)
             ),
             solicitud.getResenaGenerada() == null ? null : solicitud.getResenaGenerada().getId(),
             solicitud.getMotivoRechazo()
         );
+    }
+
+    private String extractTeacherNamePart(String legacyValue, boolean firstPart) {
+        if (legacyValue == null || legacyValue.isBlank()) {
+            return null;
+        }
+        try {
+            SuggestedTeacherName parsed = SuggestedTeacherNameParser.fromLegacyValue(legacyValue, "nombreDocenteSugerido");
+            return firstPart ? parsed.nombres() : parsed.apellidos();
+        } catch (BusinessException ex) {
+            return null;
+        }
     }
 }

@@ -8,6 +8,8 @@ public record SolicitudResponse(
     String estado,
     String nombreCursoSugerido,
     String nombreDocenteSugerido,
+    String nombresDocenteSugerido,
+    String apellidosDocenteSugerido,
     String comentario,
     String motivoRechazo,
     OffsetDateTime fechaCreacion

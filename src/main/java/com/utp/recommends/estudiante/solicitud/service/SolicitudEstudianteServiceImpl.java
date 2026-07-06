@@ -2,6 +2,8 @@ package com.utp.recommends.estudiante.solicitud.service;
 
 import com.utp.recommends.common.exception.BusinessException;
 import com.utp.recommends.common.exception.ResourceNotFoundException;
+import com.utp.recommends.common.validation.SuggestedTeacherName;
+import com.utp.recommends.common.validation.SuggestedTeacherNameParser;
 import com.utp.recommends.domain.entity.Solicitud;
 import com.utp.recommends.domain.enums.EstadoSolicitud;
 import com.utp.recommends.domain.enums.TipoSolicitud;
@@ -40,19 +42,24 @@ public class SolicitudEstudianteServiceImpl implements SolicitudEstudianteServic
         if (request.tipo() == TipoSolicitud.CURSO_NUEVO && (request.nombreCursoSugerido() == null || request.nombreCursoSugerido().isBlank())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "nombreCursoSugerido es obligatorio");
         }
-        if (request.tipo() == TipoSolicitud.DOCENTE_NUEVO && (request.nombreDocenteSugerido() == null || request.nombreDocenteSugerido().isBlank())) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "nombreDocenteSugerido es obligatorio");
+        SuggestedTeacherName docenteSugerido = null;
+        if (request.tipo() == TipoSolicitud.DOCENTE_NUEVO || request.tipo() == TipoSolicitud.AMBOS) {
+            docenteSugerido = SuggestedTeacherNameParser.fromRequestFields(
+                request.nombresDocenteSugerido(),
+                request.apellidosDocenteSugerido(),
+                request.nombreDocenteSugerido(),
+                "docente sugerido"
+            );
         }
         if (request.tipo() == TipoSolicitud.AMBOS &&
-            ((request.nombreCursoSugerido() == null || request.nombreCursoSugerido().isBlank()) ||
-                (request.nombreDocenteSugerido() == null || request.nombreDocenteSugerido().isBlank()))) {
+            (request.nombreCursoSugerido() == null || request.nombreCursoSugerido().isBlank())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "Debe enviar curso y docente sugeridos");
         }
         Solicitud solicitud = new Solicitud();
         solicitud.setEstudiante(authenticatedUserService.getCurrentEstudiante());
         solicitud.setTipo(request.tipo());
         solicitud.setNombreCursoSugerido(request.nombreCursoSugerido());
-        solicitud.setNombreDocenteSugerido(request.nombreDocenteSugerido());
+        solicitud.setNombreDocenteSugerido(docenteSugerido == null ? null : docenteSugerido.toLegacyValue());
         solicitud.setComentario(request.comentario());
         solicitud.setEstado(EstadoSolicitud.PENDIENTE);
         if (request.carreraSugeridaId() != null) {
@@ -81,9 +88,23 @@ public class SolicitudEstudianteServiceImpl implements SolicitudEstudianteServic
             solicitud.getEstado().name(),
             solicitud.getNombreCursoSugerido(),
             solicitud.getNombreDocenteSugerido(),
+            splitTeacherName(solicitud.getNombreDocenteSugerido(), true),
+            splitTeacherName(solicitud.getNombreDocenteSugerido(), false),
             solicitud.getComentario(),
             solicitud.getMotivoRechazo(),
             solicitud.getFechaCreacion()
         );
+    }
+
+    private String splitTeacherName(String value, boolean firstPart) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            SuggestedTeacherName parsed = SuggestedTeacherNameParser.fromLegacyValue(value, "docente sugerido");
+            return firstPart ? parsed.nombres() : parsed.apellidos();
+        } catch (BusinessException ex) {
+            return null;
+        }
     }
 }

@@ -20,7 +20,9 @@ public record ModeracionSolicitudResponse(
         String nombreCursoSugerido,
         Long carreraSugeridaId,
         String carreraSugeridaNombre,
-        String nombreDocenteSugerido
+        String nombreDocenteSugerido,
+        String nombresDocenteSugerido,
+        String apellidosDocenteSugerido
     ) {
     }
 }
