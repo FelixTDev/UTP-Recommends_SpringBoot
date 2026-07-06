@@ -1,0 +1,10 @@
+target
+.git
+.github
+.agent
+.agents
+.m2repo
+*.log
+*.err.log
+tmp-*
+docs
