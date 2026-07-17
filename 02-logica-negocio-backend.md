@@ -1,102 +1,307 @@
-# UTP+Recommends — Lógica de negocio del backend (Spring Boot)
+# UTP+Recommends - Logica de negocio del backend
 
-Este documento describe el comportamiento esperado del backend: reglas de negocio, flujos, autenticación/autorización y estrategia de pruebas. El modelo de datos está en `01-logica-negocio-bd.md` — este documento asume que ya lo leíste.
+Este documento resume el comportamiento esperado del backend en Spring Boot, sus reglas funcionales principales, criterios de seguridad, manejo de datos y estrategia de pruebas. Su finalidad es respaldar tecnicamente la sustentacion del proyecto final y dejar trazables las decisiones de implementacion.
 
-## 0. Stack y decisiones técnicas confirmadas
+El modelo de datos base se detalla en `01-logica-negocio-bd.md`. Este documento se enfoca en la capa de aplicacion: controladores, servicios, autorizacion y validaciones de negocio.
 
-- Spring Boot + Spring Data JPA (Hibernate) sobre MySQL 8.
-- Arquitectura por capas: `controller` → `service` → `repository`, con DTOs de entrada/salida separados de las entidades (nunca serializar entidades JPA directamente en las respuestas).
-- Autenticación: **JWT stateless** con Spring Security. Access token de vida corta (15-30 min); si se implementa refresh token, vida larga (7 días) revocable.
-- Pruebas: **Testcontainers con MySQL real** (no H2), corriendo sobre Docker — la misma imagen de MySQL usada en tests es la que se usará para desarrollo local y, eventualmente, producción. Esto da consistencia entre "lo que se prueba" y "lo que se despliega".
-- Empaquetado: la aplicación corre en Docker (Dockerfile propio), pensada para desplegarse como contenedor independiente del contenedor de MySQL.
-- Hosting de MySQL en producción: pendiente de decidir (Railway es la opción que se está evaluando). El backend debe leer la conexión a BD por variables de entorno (`SPRING_DATASOURCE_URL`, `_USERNAME`, `_PASSWORD`) para no acoplarse a ningún proveedor específico.
+## 1. Stack y decisiones tecnicas
 
-## 1. Autenticación y registro
+El backend se construye con:
 
-**Registro de estudiante**
-- El email debe cumplir el formato completo `^U[0-9]{8}@utp\.edu\.pe$` — no solo el dominio. El `codigo_estudiante` se extrae de la parte local del email, nunca se pide como campo independiente (evita que queden desincronizados).
-- `nombres`/`apellidos`: solo letras y espacios (incluye tildes y ñ), 2-100 caracteres.
-- `carrera_id` debe existir y estar en estado `ACTIVA`.
-- Password: mínimo 8 caracteres, al menos 1 mayúscula y 1 número. Se persiste con BCrypt.
-- Verificar unicidad de email y código antes de insertar; si la BD rechaza por constraint, traducir a un mensaje de negocio claro (409), no un error crudo.
-- Al crear: `rol = ESTUDIANTE`, `estado = ACTIVO`.
-- (Mejora recomendada, no bloqueante para el MVP) Verificación de correo institucional antes de activar la cuenta.
+- Spring Boot;
+- Spring Web;
+- Spring Data JPA;
+- Spring Security;
+- JWT stateless;
+- MySQL 8;
+- Maven;
+- Docker;
+- Testcontainers para integracion.
 
-**Login**
-- Si `usuario.estado != ACTIVO` (INACTIVO o SUSPENDIDO), rechazar con 403 y mensaje específico según el estado, no un 401 genérico.
-- El JWT lleva como claims: id de usuario, rol, estado. Firmado con una clave desde variables de entorno.
+Decisiones tecnicas principales:
 
-**Autorización**
-- Reglas por prefijo de ruta: `/api/admin/**` solo rol ADMIN, `/api/estudiante/**` solo rol ESTUDIANTE.
-- Ningún endpoint de "mis reseñas" o "mis solicitudes" debe confiar en un `estudiante_id` que venga en el body — siempre se extrae del JWT autenticado.
+- arquitectura por capas `controller -> service -> repository`;
+- DTOs separados de las entidades para entrada y salida;
+- entidades JPA no expuestas directamente al cliente;
+- autenticacion basada en JWT con control de roles;
+- persistencia validada contra schema existente;
+- pruebas de integracion con MySQL real, no con H2.
 
-## 2. Módulo de cursos y docentes (CRUD admin)
+## 2. Responsabilidad de cada capa
 
-- **Curso**: si `tipo = GENERAL`, el service fuerza `carrera_id = null` sin importar lo que venga en el DTO. Si `tipo = CARRERA`, `carrera_id` es obligatorio y debe existir y estar activa.
-- Duplicados de nombre en cursos GENERAL: como el UNIQUE de BD no los detecta (por el manejo de NULLs en MySQL), el service debe validar manualmente antes de insertar.
-- **Docente**: al "eliminar" desde el admin, si tiene registros en `curso_docente` con reseñas asociadas, bloquear el borrado físico y forzar `estado = INACTIVO` (soft delete). El mensaje de error debe ser de negocio, no un stacktrace de violación de FK.
-- **curso_docente**: al "quitar" un docente de un curso, cambiar `estado = INACTIVO` en la fila, nunca borrarla si ya tiene reseñas.
+### 2.1. Controladores
 
-## 3. Módulo de reseñas (estudiante)
+Se encargan de:
 
-**Crear reseña**
-- Verificar que `curso_docente_id` exista y esté `ACTIVO`.
-- Buscar si ya existe una fila "activa" (`PENDIENTE` o `APROBADA`) para esa combinación estudiante + curso_docente:
-  - Si existe y está `PENDIENTE` → la request se trata como actualización de esa misma fila (no se crea una nueva).
-  - Si existe y está `APROBADA` → rechazar con 409 ("ya tienes una reseña aprobada para este curso y docente").
-  - Si la última reseña de esa combinación está `RECHAZADA` (no hay ninguna activa) → es un **reenvío**: se crea una fila nueva con `version = anterior.version + 1` y `resena_anterior_id = anterior.id`, estado `PENDIENTE`. La fila anterior queda intacta como historial permanente.
-  - El índice único sobre `clave_activa` en BD es la garantía de última instancia; el service debe capturar la violación y traducirla a un mensaje de negocio (nunca dejar pasar el error crudo de MySQL al cliente).
-- Debe venir al menos 1 calificación (`resena_calificacion`) por cada `criterio_calificacion` activo, con puntaje entre 1 y 5.
-- `es_anonimo` lo decide el estudiante en el payload.
-- El estado inicial siempre es `PENDIENTE`, ignorando cualquier valor de estado que venga en el DTO de entrada.
+- recibir requests HTTP;
+- validar formato basico de entrada;
+- delegar la logica al servicio correspondiente;
+- devolver respuestas y codigos HTTP adecuados.
 
-**Listar mis reseñas**
-- Filtrar siempre por el `estudiante_id` extraído del JWT.
-- Agrupar por combinación curso_docente y mostrar por defecto solo la última versión (opcionalmente exponer el historial completo si el estudiante quiere verlo).
-- Incluir las `PENDIENTE` y `RECHAZADA` con su motivo — el estudiante necesita ver en qué estado está lo suyo.
+### 2.2. Servicios
 
-## 4. Módulo de moderación (admin)
+Se encargan de:
 
-**Aprobar/rechazar reseña**
-- Solo es válida la transición desde `PENDIENTE`. Si ya está `APROBADA` o `RECHAZADA`, devolver 409 (no permitir doble moderación silenciosa).
-- Al rechazar, `motivo_rechazo` es obligatorio.
-- Registrar `admin_moderador_id` (del JWT) y `fecha_moderacion` (ahora).
+- aplicar reglas del dominio;
+- gestionar transacciones;
+- coordinar multiples repositorios;
+- validar permisos funcionales;
+- traducir estados del sistema en respuestas coherentes.
 
-**Ocultar reseña ya aprobada**
-- Transición `APROBADA` → `OCULTA`, para casos de reportes/abuso posteriores sin perder el historial.
+### 2.3. Repositorios
 
-## 5. Módulo de solicitudes (curso/docente inexistente)
+Se encargan de:
 
-**Crear solicitud**
-- El `tipo` determina qué campos son obligatorios (`CURSO_NUEVO` requiere nombre de curso, `DOCENTE_NUEVO` requiere nombre de docente, `AMBOS` requiere ambos).
-- Antes de guardar, sugerir (no bloquear) si ya existe un curso/docente con nombre muy similar, para reducir duplicados por error de tipeo.
+- acceso a persistencia;
+- consultas derivadas y personalizadas;
+- soporte para filtros, busquedas y agregaciones.
 
-**Aprobar solicitud** — flujo transaccional (`@Transactional`), todo o nada:
-1. Si el tipo incluye `DOCENTE_NUEVO`, crear el `docente`.
-2. Si el tipo incluye `CURSO_NUEVO`, crear el `curso`.
-3. Crear o reutilizar la fila `curso_docente` correspondiente.
-4. Crear la `resena` directamente en estado **`APROBADA`** (no pasa por moderación otra vez — el admin la está formalizando y aprobando en el mismo acto), usando el `comentario` de la solicitud, vinculada al estudiante original. `admin_moderador_id` = el mismo admin, `fecha_moderacion` = ahora.
-5. Guardar `resena_generada_id` en la solicitud y marcarla `APROBADA`.
-- Como la reseña se publica de inmediato sin pasar por el flujo normal, el service debe validar el `comentario` con las mismas reglas mínimas que cualquier reseña (no vacío, longitud mínima) antes de dejar aprobar la solicitud — es la única revisión que va a tener.
+## 3. Autenticacion y autorizacion
 
-**Rechazar solicitud**: `motivo_rechazo` obligatorio, no se crea nada.
+## 3.1. Registro de estudiante
 
-## 6. Listados públicos (admin + estudiante)
+Reglas principales:
 
-- Listado general y listado por curso+docente: solo `resena.estado = APROBADA`, paginados y ordenables (por fecha o por promedio de calificación).
-- El DTO de salida nunca incluye identidad del estudiante si `es_anonimo = true` — se construye el DTO campo por campo, nunca serializando la entidad completa.
-- El promedio por criterio se calcula con una consulta agregada en BD, no trayendo todo a memoria para promediar en Java.
+- el correo debe cumplir el formato `^U[0-9]{8}@utp.edu.pe$`;
+- `codigo_estudiante` se extrae del correo y no se solicita por separado;
+- `nombres` y `apellidos` aceptan solo letras y espacios;
+- `carrera_id` debe existir y estar en estado activo;
+- la password debe tener al menos 8 caracteres, una mayuscula y un numero;
+- la password se guarda con BCrypt;
+- el registro se crea con `rol = ESTUDIANTE` y `estado = ACTIVO`.
 
-## 7. Manejo de errores
+Validaciones funcionales:
 
-- Handler global que traduce:
-  - Violación de UNIQUE/FK/CHECK → 409 con mensaje de negocio específico según el contexto (reseña duplicada, curso con docentes activos, etc.), nunca el mensaje crudo de MySQL.
-  - Fallo de validación de DTO → 400 con la lista de campos inválidos.
-  - Excepciones de negocio propias (reseña ya existe activa, transición de estado inválida, etc.) → códigos HTTP específicos y mensajes claros para el frontend.
+- no se permite duplicar correo;
+- no se permite duplicar codigo institucional;
+- los errores de constraint deben traducirse a mensajes claros para frontend.
 
-## 8. Estrategia de pruebas (TDD)
+## 3.2. Login
 
-- Tests de servicio (lógica de negocio pura: transiciones de estado, versionado de reseñas, validaciones de curso GENERAL/CARRERA) con mocks de los repositorios.
-- Tests de integración con Testcontainers levantando un contenedor real de MySQL 8 para cada suite — así se prueban también los constraints de BD (CHECK, UNIQUE sobre `clave_activa`, etc.), no solo la lógica de Java.
-- Tests de controlador (MockMvc) para verificar códigos de estado HTTP y forma de los DTOs de respuesta, incluyendo el caso de `es_anonimo` (que el nombre del estudiante nunca se filtre).
-- Casos de prueba mínimos que la rúbrica espera ver evidenciados: creación de reseña, intento de reseña duplicada activa, reenvío tras rechazo, aprobación de solicitud con creación en cascada de curso/docente/reseña.
+Reglas principales:
+
+- si el usuario no existe o la password no coincide, se rechaza la autenticacion;
+- si el usuario esta `INACTIVO` o `SUSPENDIDO`, se devuelve rechazo con mensaje funcional;
+- el JWT incluye al menos `id`, `rol` y `estado`;
+- el token se firma con una clave configurada por variables de entorno.
+
+## 3.3. Autorizacion por roles
+
+Reglas generales:
+
+- `/api/admin/**` solo para `ADMIN`;
+- `/api/estudiante/**` solo para `ESTUDIANTE`;
+- `/api/public/**` accesible sin autenticacion;
+- los endpoints de recursos propios toman identidad desde el JWT, no desde el body del cliente.
+
+## 4. Modulo administrativo
+
+## 4.1. Gestion de cursos
+
+Reglas:
+
+- si `tipo = GENERAL`, el sistema fuerza `carrera_id = null`;
+- si `tipo = CARRERA`, `carrera_id` es obligatorio;
+- la carrera asociada debe existir y estar activa;
+- para cursos generales se valida manualmente duplicidad de nombre.
+
+## 4.2. Gestion de docentes
+
+Reglas:
+
+- el admin puede crear, listar y actualizar docentes;
+- si un docente ya tiene historial relacionado, se prioriza inactivarlo antes que borrarlo;
+- no deben exponerse errores crudos de clave foranea al usuario.
+
+## 4.3. Gestion de curso-docente
+
+Reglas:
+
+- no se debe repetir la misma combinacion `curso-docente`;
+- si una asignacion ya tiene historial, al retirarla se cambia a `INACTIVO` en lugar de eliminarla;
+- se preserva la trazabilidad de resenas antiguas.
+
+## 4.4. Gestion de criterios
+
+Reglas:
+
+- los criterios son administrables;
+- pueden activarse o desactivarse;
+- no deben eliminarse si ya participaron en resenas historicas.
+
+## 5. Modulo de resenas
+
+## 5.1. Creacion de resena
+
+Reglas obligatorias:
+
+- `curso_docente_id` debe existir y estar activo;
+- la resena debe registrar al menos un puntaje por cada criterio activo;
+- todos los puntajes deben estar entre 1 y 5;
+- el estado inicial siempre es `PENDIENTE`;
+- `es_anonimo` lo define el estudiante;
+- el backend no confia en estados enviados desde el cliente.
+
+## 5.2. Regla de resena activa unica
+
+Antes de crear una resena se verifica si ya existe una resena activa para esa combinacion estudiante + curso-docente.
+
+Casos posibles:
+
+- si ya existe una resena `PENDIENTE`, se actualiza esa misma fila;
+- si ya existe una resena `APROBADA`, la operacion se rechaza;
+- si la ultima fue `RECHAZADA`, se permite reenviar creando una nueva version;
+- la base de datos actua como ultima barrera con la columna `clave_activa`.
+
+## 5.3. Historial y versionado
+
+Cuando una resena es rechazada:
+
+- no se edita la fila original;
+- se conserva el historial;
+- el estudiante puede reenviar;
+- el reenvio crea una nueva fila con `version + 1` y referencia a la anterior.
+
+## 5.4. Consulta de resenas propias
+
+Reglas:
+
+- el estudiante solo puede ver sus propias resenas;
+- la identidad del estudiante se obtiene del JWT;
+- el sistema puede mostrar la ultima version y, si se requiere, el historial;
+- se debe mostrar motivo de rechazo cuando exista.
+
+## 6. Modulo de moderacion
+
+## 6.1. Aprobar resena
+
+Reglas:
+
+- solo se aprueban resenas `PENDIENTE`;
+- se registra admin moderador;
+- se registra fecha de moderacion;
+- no se permite doble aprobacion silenciosa.
+
+## 6.2. Rechazar resena
+
+Reglas:
+
+- solo se rechazan resenas `PENDIENTE`;
+- `motivo_rechazo` es obligatorio;
+- se registra admin moderador y fecha;
+- el rechazo conserva la posibilidad de reenvio futuro.
+
+## 6.3. Ocultar resena
+
+Reglas:
+
+- solo aplica sobre resenas ya aprobadas;
+- permite retirar contenido visible sin perder el historial;
+- se usa para reportes, abuso o control posterior.
+
+## 7. Modulo de solicitudes
+
+## 7.1. Creacion de solicitud
+
+Reglas:
+
+- `tipo` define que campos son obligatorios;
+- `CURSO_NUEVO` exige nombre de curso;
+- `DOCENTE_NUEVO` exige nombre de docente;
+- `AMBOS` exige ambos;
+- el comentario asociado debe validarse antes de persistir.
+
+## 7.2. Aprobacion de solicitud
+
+Es un flujo transaccional de todo o nada:
+
+1. crear docente si corresponde;
+2. crear curso si corresponde;
+3. crear o reutilizar relacion `curso_docente`;
+4. generar la resena resultante;
+5. registrar `resena_generada_id`;
+6. marcar la solicitud como `APROBADA`.
+
+Reglas:
+
+- la resena generada puede quedar directamente `APROBADA` como parte de la resolucion administrativa;
+- el comentario debe cumplir validaciones minimas;
+- el proceso debe ser atomico para no dejar datos a medio camino.
+
+## 7.3. Rechazo de solicitud
+
+Reglas:
+
+- `motivo_rechazo` es obligatorio;
+- no se crean entidades derivadas;
+- debe quedar trazabilidad de quien resolvio y cuando.
+
+## 8. Listados publicos
+
+Reglas:
+
+- solo se muestran resenas `APROBADA`;
+- el listado debe ser paginable;
+- puede ordenarse por fecha o promedio;
+- si la resena es anonima, no se expone la identidad del estudiante;
+- los promedios por criterio deben calcularse desde base de datos o consultas agregadas.
+
+## 9. Manejo de errores
+
+El backend debe tener un handler global que traduzca:
+
+- errores de validacion a `400`;
+- conflictos de negocio a `409`;
+- falta de autenticacion a `401`;
+- falta de autorizacion a `403`;
+- errores inesperados a respuestas controladas.
+
+Criterios de calidad:
+
+- nunca devolver mensajes crudos de MySQL;
+- siempre devolver mensajes utiles para el frontend;
+- mantener consistencia en formato de respuesta.
+
+## 10. Pruebas
+
+La estrategia de pruebas considera:
+
+- pruebas unitarias de servicios;
+- pruebas de controladores con MockMvc;
+- pruebas de integracion con Testcontainers y MySQL real;
+- validacion de autenticacion y rutas protegidas;
+- validacion de flujos de resena, moderacion y solicitudes.
+
+Casos minimos valiosos para sustentar:
+
+- registro e inicio de sesion;
+- acceso permitido y denegado por rol;
+- intento de duplicar resena activa;
+- reenvio de resena rechazada;
+- aprobacion de solicitud con creacion encadenada;
+- ocultamiento de resena aprobada;
+- obtencion de listados publicos anonimizados.
+
+## 11. Consideraciones de despliegue
+
+El backend esta preparado para:
+
+- ejecutarse localmente con Maven;
+- empaquetarse en Docker;
+- desplegarse como servicio independiente;
+- leer configuracion sensible desde variables de entorno;
+- conectarse a MySQL sin acoplarse a un proveedor especifico.
+
+Esto facilita integracion con plataformas como Render y otros entornos equivalentes.
+
+## 12. Conclusiones tecnicas
+
+La logica del backend fue disenada para priorizar:
+
+- seguridad;
+- consistencia transaccional;
+- separacion de responsabilidades;
+- trazabilidad de cambios y moderacion;
+- integracion limpia con el frontend Angular.
+
+Con este enfoque, el backend no solo expone endpoints funcionales, sino que protege reglas clave del dominio academico y respalda el alcance completo del proyecto final.
